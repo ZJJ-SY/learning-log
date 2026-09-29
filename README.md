@@ -2,7 +2,7 @@
 
 信息安全 · 2026 级 · 成都信息工程大学
 
-记录我在信息安全方向上的学习轨迹。**写下来才算真的学过。**
+记录我在信息安全方向上的学习轨迹。
 
 ---
 
@@ -69,6 +69,6 @@ learning-log/
 
 ```bash
 git add .
-git commit -m "log: YYYY-MM-DD 学习记录"
+git commit -m 
 git push
 ```
