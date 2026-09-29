@@ -50,7 +50,7 @@
 ```
 learning-log/
 ├── README.md          本文件（门面 + 总目录）
-├── daily/             每日日志，文件名格式 YYYY-MM-DD.md
+├── daily/             每日日志，文件名格式 
 ├── notes/             专题笔记，按主题命名
 ├── ctf/               题目记录
 └── _templates/        模板文件
