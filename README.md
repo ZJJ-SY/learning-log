@@ -29,7 +29,7 @@
 
 > 把零散的知识沉淀成体系，放这里。
 
-- *（待补充）*
+- [**sqli-labs Less-1 ~ Less-20 通关笔记**](notes/sqli-labs/README.md) — SQL 注入入门，20 关 payload 全部在本机靶场实测通过（21 篇）
 
 ### 🚩 CTF 记录
 - [极客大挑战2023-web-esay_php](daily/2026-10-08.md)
@@ -40,7 +40,7 @@
 | 项目 | 数量 |
 | --- | --- |
 | 日志篇数 | 9 |
-| 专题笔记 | 0 |
+| 专题笔记 | 1 个专题（21 篇） |
 | CTF 题解 | 1 |
 | 开始记录 | 2026-09-29 |
 
@@ -53,7 +53,7 @@
 ```
 learning-log/
 ├── README.md          本文件（门面 + 总目录）
-├── daily/             每日日志，文件名格式 
+├── daily/             每日日志，文件名格式 YYYY-MM-DD.md
 ├── notes/             专题笔记，按主题命名
 ├── ctf/               题目记录
 └── _templates/        模板文件
@@ -72,6 +72,6 @@ learning-log/
 
 ```bash
 git add .
-git commit -m 
+git commit -m "note: sqli-labs Less-1~20 通关笔记"
 git push
 ```
