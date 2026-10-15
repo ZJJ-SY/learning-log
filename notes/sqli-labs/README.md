@@ -109,8 +109,9 @@
 | updatexml 不报错、页面一片空白 | XPath 参数恰好是**合法**路径：`concat(database())` = `security` 是合法的元素名 | 加 `0x7e` 前缀，把 `~security` 变成非法 XPath |
 | updatexml 只吐一半数据 | 报错回显上限 32 字节 | 用 `substr()` 分段取 |
 | Less-13/14 的 UNION 看不到数据 | 源码里 echo 被注释掉了 | 改走布尔盲注，看 `flag.jpg` |
+| **表单里 `--+` 失灵，报错 `near 'x'`** | 浏览器把输入框里字面的 `+` 转义成 `%2B`；而 MySQL 的 `--` 注释要求后面跟空白字符，`--+` 不算注释 | **POST 关一律用 `#`**，或写 `-- qwe`（详见第零章「注释符」） |
+| curl 的 `--data-urlencode` 让 `--+` 失效 | `+` 被编码成 `%2B` | 改用 `--data-raw` 自己控制编码 |
 | 改完 Cookie 刷新又变回去了 | 点了提交按钮走了 POST 分支 | 只按 F5 刷新 |
-| curl 的 `--data-urlencode` 让 `--+` 失效 | `+` 被编码成 `%2B` | 改用 Burp 或手动构造 body |
 
 ---
 

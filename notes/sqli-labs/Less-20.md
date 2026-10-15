@@ -6,6 +6,7 @@
 |---|---|
 | **注入类型** | Cookie 注入 |
 | **闭合方式** | `'` |
+| **注释符** | `--+ · Cookie 值会被 URL 解码` |
 | **成败信号** | 数据回显 + SQL 报错 |
 | **一句话** | Cookie 里的 uname |
 | **核心 payload** | `Cookie: uname=-1' union select 1,2,3--+` |

