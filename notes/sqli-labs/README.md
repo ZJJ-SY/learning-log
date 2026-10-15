@@ -102,7 +102,11 @@
 | 所有 payload 都返回一样的 `Dumb/Dumb` | `magic_quotes_gpc = On` 把 `'` 转义了 | 改 `php5.2.17nts\php.ini` 为 `Off` 并重启服务 |
 | Less-7 写文件失败 | `@@secure_file_priv = NULL` | 改 `my.ini` 后重启 MySQL（或改用盲注） |
 | Less-17 拖库失败 | MySQL `ERROR 1093`：UPDATE 时子查询同表 | 套派生表 `(select * from (...) x)` |
-| Less-17 用 `and` 不出报错 | `'' and X` 短路求值 | 改用 `or` |
+| `and` 左边为假时 `sleep()` 不执行 | `AND` 短路求值（**常量表达式不受影响**，会在优化期被折叠） | 改用 `or`，或让左边为真 |
+| `FUNCTION security.concatenate does not exist` | MySQL **根本没有** `concatenate()` 这个函数，纯属拼错 | 改成 `concat()` |
+| `FUNCTION 库名.函数名 does not exist` | MySQL 把不认识的函数名当成**用户自定义函数 (UDF)**，而 UDF 必须带库名前缀——报错里的 `security` 就是这么来的 | 回头检查函数名拼写 |
+| `Only constant XPATH queries are supported` | `updatexml()` / `extractvalue()` 的 XPath 参数**必须是常量**，传列名会被拒 | 用 `database()`、`version()` 或子查询 |
+| updatexml 不报错、页面一片空白 | XPath 参数恰好是**合法**路径：`concat(database())` = `security` 是合法的元素名 | 加 `0x7e` 前缀，把 `~security` 变成非法 XPath |
 | updatexml 只吐一半数据 | 报错回显上限 32 字节 | 用 `substr()` 分段取 |
 | Less-13/14 的 UNION 看不到数据 | 源码里 echo 被注释掉了 | 改走布尔盲注，看 `flag.jpg` |
 | 改完 Cookie 刷新又变回去了 | 点了提交按钮走了 POST 分支 | 只按 F5 刷新 |

