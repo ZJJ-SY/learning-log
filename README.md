@@ -31,6 +31,7 @@
 
 - [**sqli-labs Less-1 ~ Less-20 通关笔记**](notes/sqli-labs/README.md) — SQL 注入入门，20 关 payload 全部在本机靶场实测通过（21 篇）
 - [**upload-labs 文件上传靶场笔记**](notes/upload-labs/README.md) — `.htaccess` 上传绕过与 PHP 环境探测，含三种部署方式的差异与排查决策树（2 篇）
+- [**系统命令速查手册 · Linux / Windows**](notes/系统命令速查手册-Linux与Windows.md) — 13 类系统命令两平台对照，含编码乱码排查、反弹 Shell 与实战踩坑
 
 ### 🚩 CTF 记录
 - [极客大挑战2023-web-esay_php](daily/2026-10-08.md)
@@ -41,7 +42,7 @@
 | 项目 | 数量 |
 | --- | --- |
 | 日志篇数 | 9 |
-| 专题笔记 | 2 个专题（23 篇） |
+| 专题笔记 | 3 个专题（24 篇） |
 | CTF 题解 | 1 |
 | 开始记录 | 2026-09-29 |
 
